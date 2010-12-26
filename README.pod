@@ -1,0 +1,72 @@
+=head1 NAME
+
+ssh-login.pl - brute force ssh accounts
+
+=head1 SYNOPSIS
+
+ssh-login.pl --password ~/password --keyfile ~/.ssh/id_rsa.pub --host 10.1.2.3
+
+=head1 DESCRIPTION
+
+This program will use a list of passwords and the system ssh client to try and
+login to a remote host. 
+
+It was written to ease the management of a large number of servers, all of
+which had one of a collection of different "default" passwords. Going through
+these passwords in an attempt to log in looses it's appeal after a time - hence
+this tool. It's not designed to be fast, as the passwords are tried in serial.
+
+If the program successfully logs on, and a public key has been specified with
+--keyfile, the program will add the specified public key to the remote users
+AuthorizedKeysFile file (defaults to ~/.ssh/authorized_keys) - but only if it
+isn't already present. The permissions on this file are set to 600. If ~/.ssh/
+doesn't exist it is created with permissions 700.
+
+=head1 WARNING!
+
+Make sure you keep the file containing your passwords secure!
+
+=head1 OPTIONS
+
+=over
+
+=item B<--password F<file>>
+
+File containing a list of newline seperated passwords to use.
+
+=item B<--keyfile F<~/.ssh/id_rsa.pub>>
+
+Path to an SSH public key file. Defaults to ~/.ssh/id_rsa.pub
+
+=item B<--user root>
+
+The username to attempt to log in as. Defaults to "root".
+
+=item B<--host hostname>
+
+The hostname/IP to attempt to log into.
+
+=item B<--help>
+
+Show the command line arguments.
+
+=item B<--man>
+
+Show the program documentation.
+
+=back
+
+=head1 BUGS
+
+Probably relies on the remote user shell being bash.
+
+Assumes the client is OpenSSH.
+
+=head1 SEE ALSO
+
+L<ssh_config(5)>, L<Expect>
+
+=head1 AUTHOR
+
+Jonathan Barber - jonathan.barber@gmail.com
+
