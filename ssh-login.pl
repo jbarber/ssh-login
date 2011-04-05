@@ -55,6 +55,10 @@ The username to attempt to log in as. Defaults to "root".
 
 The hostname/IP to attempt to log into.
 
+=item B<--ignorehostkey>
+
+If the remote hosts key has changed, delete it and continue.
+
 =item B<--help>
 
 Show the command line arguments.
@@ -81,12 +85,13 @@ Jonathan Barber - jonathan.barber@gmail.com
 
 =cut
 
-my ($password, $keyfile, $host, $timeout, $user, $help, $man, $authorizedkeysfile);
+my ($password, $keyfile, $host, $timeout, $user, $ignore, $help, $man, $authorizedkeysfile);
 GetOptions(
 	"password=s" => \$password,
 	"keyfile=s" => \$keyfile,
 	"host=s" => \$host,
 	"user=s" => \$user,
+	"ignorehostkey" => \$ignore,
 	"timeout=i" => \$timeout,
 	"help" => \$help,
 	"man" => \$man,
@@ -118,23 +123,52 @@ $host or die "Not given a --host to connect to!\n";
 
 print my $lcmd = "$cmd $host\n";
 
-# First try and connect to see if our key is present
-if (1) {
-	my $exp = Expect->spawn( "ssh -l $user -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o ConnectTimeout=30 $host 2>&1\n" );
+# try and connect to the remote server to:
+# 1) Add the host key to our known host file
+# 2) See if we already have access to the host via a ssh-agent held key
+# 3) Remove the old host key if it's changed
+# Slighly evil iteration in case 3), but the only other nice way I could think of doing it is via GOTO...
+sub try_connect {
+	my ($attempts) = @_;
+	defined $attempts || ($attempts = 1);
+	# This is to prevent infinite recursion
+	return if $attempts-- <= 0;
+
+	my $exp = Expect->spawn( "ssh -l $user -F /dev/null -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o ConnectTimeout=30 $host 2>&1\n" );
 	$exp->expect( $timeout,
 		[ qr#Are you sure you want to continue connecting (yes/no)?# => sub {
 		       	$exp->send( "yes\n" );
 			$exp->expect( $timeout,
-				[ qr/$user@/ => sub { print "Already have access, skipping\n"; exit } ],
+				[ qr/$user@/ => sub { warn "Already have access, skipping\n"; exit; } ],
 				[ timeout => sub { die "Timeout" } ],
 			);
-			$exp->soft_close;
+			# We don't have access, return to try some passwords
+			$exp->hard_close;
+			return;
 	       	} ],
-		[ qr/$user@/ => sub { print "Already have access, skipping\n"; exit } ],
+		[ qr#RSA host key for $host has changed and you have requested strict checking.# => sub {
+			if ($ignore) {
+				warn "Removing old host key\n";
+				qx(ssh-keygen -R $host);
+				$exp->hard_close;
+				# Try connecting again
+				return try_connect(1);
+			}
+			else {
+				die "Bad host key, skipping\n";
+			}
+		} ],
+		[ qr/$user@/ => sub {
+			warn "Already have access, skipping\n";
+			exit;
+		} ],
 		[ timeout => sub { die "Timeout" } ],
 	);
-	$exp->soft_close;
+	$exp->hard_close;
 }
+
+# First try and connect to see if our key is present
+try_connect();
 
 for my $passwd (@passwds) {
 	my $exp = Expect->spawn( "$lcmd 2>&1" );
