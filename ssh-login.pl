@@ -103,7 +103,7 @@ $keyfile ||= "~/.ssh/id_rsa.pub";
 $authorizedkeysfile ||= ".ssh/authorized_keys";
 $timeout ||= 30;
 $user    ||= "root";
-my $cmd = "ssh -F /dev/null -l $user -o PubkeyAuthentication=no -o PasswordAuthentication=yes -o PreferredAuthentications=password -o NumberOfPasswordPrompts=1 -o ConnectTimeout=30";
+my $cmd = "ssh -F /dev/null -l $user -o PubkeyAuthentication=no -o PasswordAuthentication=yes -o PreferredAuthentications=password -o NumberOfPasswordPrompts=1 -o ConnectTimeout=3";
 
 my @passwds;
 {
